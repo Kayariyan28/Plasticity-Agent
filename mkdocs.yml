@@ -1,0 +1,42 @@
+site_name: Plasticity Agent Runtime
+site_description: Neuroplastic memory, self-healing, and critical reasoning for AI agents.
+repo_url: https://github.com/plasticity-agent/plasticity-agent
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: deep purple
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - scheme: slate
+      primary: deep purple
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+
+nav:
+  - Home: index.md
+  - Concepts: concepts.md
+  - Memory: memory.md
+  - Retrieval: retrieval.md
+  - LLM Features: llm.md
+  - Sleep Cycle: sleep_cycle.md
+  - Self-Healing: self_healing.md
+  - Reasoning Market: reasoning_market.md
+  - Improvement Metrics: metrics.md
+  - Observability: observability.md
+  - API Reference: api.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
+  - toc:
+      permalink: true
