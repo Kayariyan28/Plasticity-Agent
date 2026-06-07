@@ -14,7 +14,7 @@ of biological equivalence or consciousness.
 
 from __future__ import annotations
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 from plasticity_agent.core.agent import PlasticAgent
 from plasticity_agent.core.config import PlasticityConfig

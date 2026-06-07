@@ -76,10 +76,10 @@ deterministic one if a call or parse fails, so nothing ever hard-depends on a mo
 | --- | --- | :---: | :---: |
 | **Neuroplastic memory** | 5 memory types with plasticity signals | ✅ | — |
 | **Memory quality** | Utility scoring + keep/decay/consolidate/review/prune | ✅ | — |
-| **Retrieval** | Lexical → hybrid lexical+vector | ✅ | ✅ embeddings |
-| **Contradiction detection** | Negation/antonym/sentiment heuristic → entailment | ✅ | ✅ LLM |
+| **Retrieval** | Lexical; hybrid+vector with a backend (semantic needs `sentence-transformers`) | ✅ | ✅ embeddings |
+| **Contradiction detection** | Negation/antonym(stemmed)/sentiment/numeric heuristic — precision-first | ✅ | ✅ LLM |
 | **Reflection (Reflexion)** | Store lessons from feedback | ✅ | ✅ LLM |
-| **Self-Refine** | Iterative critique → improved output | ✅ | ✅ LLM |
+| **Self-Refine** | Critique + notes (deterministic) → full rewrite (LLM) | ✅ | ✅ LLM |
 | **Sleep / consolidation** | Decay, dedup, gist, skill mining, constitution governance | ✅ | ✅ embeddings |
 | **Self-healing** | Diagnose → advisory plan → **opt-in** sandboxed apply | ✅ | — |
 | **Reasoning market** | 6 critics bid; auction selects winner | ✅ | ✅ LLM critic |
@@ -250,6 +250,13 @@ Embeddings are persisted in SQLite; a NumPy-accelerated `VectorIndex` (with an o
 variant) narrows candidates for large corpora, and relevance is
 `(1-α)·lexical + α·cosine`.
 
+> **Honest note on backends.** The default `embeddings="hashing"` is a *structural* embedding
+> (token feature-hashing): fast, deterministic, zero-dependency — but it only matches on shared
+> tokens, so it will **not** retrieve pure synonyms/paraphrases (e.g. "make responses faster"
+> won't match a memory about "latency"). For genuine semantic recall use
+> `embeddings="st:all-MiniLM-L6-v2"` (`pip install sentence-transformers`) or your own embeddings
+> callable. The hybrid scoring, persistence, and index are identical across backends.
+
 ### 4. LLM-powered upgrades
 
 One callback upgrades reflection, contradiction detection, the reasoning market, and self-refine —
@@ -287,6 +294,11 @@ print(result.critique)            # flags vague phrasing, unsupported claims, ..
 print(result.improvement_score)   # 0.46
 print(result.refined_output)
 ```
+
+> The **deterministic** refiner *critiques and appends actionable notes* — it does **not** rewrite
+> the text. For an actual critique-and-rewrite, pass a model:
+> `SelfRefine(llm_callback=lambda prompt, rubric: my_llm(prompt))` (or give the agent an
+> `llm_callback`).
 
 ### 7. Sleep / consolidation
 
@@ -371,8 +383,13 @@ agent.checkpoint("after")
 
 report = agent.improvement()
 print(report.improved, report.summary)
-# True 'Over 2 checkpoints the agent improved (score +0.164): plasticity +11.5, contradiction -0.328, ...'
+# True 'Over 2 checkpoints the agent improved (score +0.135): contradiction -0.328, grounded-utility +..., skills +0 ...'
 ```
+
+> The verdict rewards **reduced contradiction**, **grounded utility** (utility weighted by how much
+> each memory is actually *recalled*), and **learned skills** — it deliberately ignores raw
+> salience/reward, so you **can't** fake improvement by storing high-reward memories that are never
+> used.
 
 ### 13. OpenTelemetry export
 

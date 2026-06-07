@@ -21,7 +21,12 @@ def _utcnow() -> datetime:
 
 
 class MetricSnapshot(BaseModel):
-    """A point-in-time measurement of agent health."""
+    """A point-in-time measurement of agent health.
+
+    ``grounded_utility`` weights each memory's utility by how much it has
+    actually been *used* (recalled), so simply storing favorable-looking
+    memories does not inflate it — only memories that prove useful do.
+    """
 
     label: str = "checkpoint"
     timestamp: datetime = Field(default_factory=_utcnow)
@@ -29,6 +34,7 @@ class MetricSnapshot(BaseModel):
     skills: int = 0
     plasticity_score: float = 0.0
     avg_utility: float = 0.0
+    grounded_utility: float = 0.0
     contradiction_pressure: float = 0.0
     memory_entropy: float = 0.0
 
@@ -41,6 +47,7 @@ class ImprovementReport(BaseModel):
     improvement_score: float
     plasticity_delta: float = 0.0
     utility_delta: float = 0.0
+    grounded_utility_delta: float = 0.0
     contradiction_delta: float = 0.0
     entropy_delta: float = 0.0
     skills_delta: int = 0
@@ -108,23 +115,28 @@ class ImprovementTracker:
         first, last = history[0], history[-1]
         plasticity_delta = last.plasticity_score - first.plasticity_score
         utility_delta = last.avg_utility - first.avg_utility
+        grounded_delta = last.grounded_utility - first.grounded_utility
         contradiction_delta = last.contradiction_pressure - first.contradiction_pressure
         entropy_delta = last.memory_entropy - first.memory_entropy
         skills_delta = last.skills - first.skills
 
-        # Up plasticity/utility good; up contradiction bad.
+        # Reward signals that are hard to fake by simply storing nice-looking
+        # memories: less contradiction, *used* (grounded) utility, and learned
+        # skills. Raw salience/plasticity is reported but deliberately NOT in the
+        # verdict, because it inflates trivially when you add high-reward memories.
+        skills_term = max(-1.0, min(1.0, skills_delta / 4.0))
         improvement_score = (
-            0.4 * (plasticity_delta / 100.0)
-            + 0.3 * utility_delta
-            + 0.3 * (-contradiction_delta)
+            0.45 * (-contradiction_delta)
+            + 0.40 * grounded_delta
+            + 0.15 * skills_term
         )
         improved = improvement_score > 0.0
         verdict = "improved" if improved else "regressed or flat"
         summary = (
             f"Over {len(history)} checkpoints the agent {verdict} "
-            f"(score {improvement_score:+.3f}): plasticity {plasticity_delta:+.1f}, "
-            f"utility {utility_delta:+.3f}, contradiction {contradiction_delta:+.3f}, "
-            f"skills {skills_delta:+d}."
+            f"(score {improvement_score:+.3f}): contradiction {contradiction_delta:+.3f}, "
+            f"grounded-utility {grounded_delta:+.3f}, skills {skills_delta:+d} "
+            f"(plasticity {plasticity_delta:+.1f} shown for context, not scored)."
         )
         return ImprovementReport(
             snapshots=len(history),
@@ -132,6 +144,7 @@ class ImprovementTracker:
             improvement_score=round(improvement_score, 4),
             plasticity_delta=round(plasticity_delta, 3),
             utility_delta=round(utility_delta, 4),
+            grounded_utility_delta=round(grounded_delta, 4),
             contradiction_delta=round(contradiction_delta, 4),
             entropy_delta=round(entropy_delta, 4),
             skills_delta=skills_delta,

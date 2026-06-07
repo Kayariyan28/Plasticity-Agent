@@ -23,15 +23,17 @@ plus memory and skill counts, timestamped.
 `ImprovementReport` compares the first and latest snapshots:
 
 ```text
-improvement_score = 0.4 * (Δplasticity / 100)
-                  + 0.3 * Δavg_utility
-                  + 0.3 * (-Δcontradiction_pressure)      # less contradiction is better
+improvement_score = 0.45 * (-Δcontradiction_pressure)     # less contradiction is better
+                  + 0.40 * Δgrounded_utility              # utility weighted by ACTUAL recall use
+                  + 0.15 * clamp(Δskills / 4, -1, 1)
 improved = improvement_score > 0
 ```
 
-It also reports each delta (plasticity, utility, contradiction, entropy, skills) and a one-line
-summary. Snapshots persist to `./memory/metrics.sqlite`, so improvement is measured across
-process restarts.
+The verdict deliberately rewards signals that are **hard to fake**: reduced contradiction,
+*grounded* utility (utility weighted by how often each memory is actually recalled), and learned
+skills. Raw salience/reward/plasticity are reported for context but **not scored** — so simply
+storing flattering, never-used memories does **not** register as improvement. Snapshots persist to
+`./memory/metrics.sqlite`, so improvement is measured across process restarts.
 
 ## CLI
 

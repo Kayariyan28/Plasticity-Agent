@@ -4,6 +4,28 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and this project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.1] - 2026-06-07
+
+Honesty/accuracy pass driven by a critical self-evaluation (see `tests/test_evaluation.py`).
+
+### Fixed
+
+- **Contradiction detection recall** raised from ~36% to ~91% on a realistic battery
+  (precision stays 100%): a light stemmer now matches inflected antonyms (`enabled`/`disabled`,
+  `increased`/`decreased`), more antonym pairs were added, and a **numeric/temporal conflict**
+  heuristic catches differing numbers in near-identical sentences (`80ms` vs `800ms`, `3pm` vs
+  `4pm`).
+- **Improvement metric is no longer gameable.** The verdict now rewards reduced contradiction,
+  *grounded* utility (utility weighted by actual recall use), and learned skills — raw
+  salience/reward/plasticity are reported but not scored, so storing unused high-reward memories
+  no longer reads as improvement. Adds `MetricSnapshot.grounded_utility`.
+
+### Changed
+
+- README/docs claims tightened for the deterministic defaults: the hashing embedder is labelled
+  *structural, not semantic* (semantic recall needs `sentence-transformers`), and deterministic
+  Self-Refine is labelled *critique + notes* (not a rewrite).
+
 ## [0.2.0] - 2026-06-07
 
 ### Added

@@ -2,15 +2,24 @@
 
 This is a *deterministic baseline*, not a truth oracle. A contradiction needs
 two things at once: topical relatedness (the memories are about the same thing)
-and semantic opposition (negation mismatch, antonyms, or a sentiment flip).
-Either signal alone scores ~0. The product of the two is returned in ``[0, 1]``.
+and semantic opposition. Opposition is detected via:
 
-A future LLM-backed entailment checker is planned; until then this catches the
-common, obvious conflicts and is honest about the rest.
+- negation mismatch (one side negated, the other not);
+- antonyms, matched through a light stemmer so inflected forms
+  (``enabled``/``disabled``, ``increased``/``decreased``) are caught;
+- a sentiment flip;
+- **numeric / temporal conflict** — near-identical wording but different numbers
+  (``80ms`` vs ``800ms``, ``3pm`` vs ``4pm``).
+
+It is intentionally conservative (high precision, partial recall). For full
+semantic entailment, wire an ``llm`` into :class:`ContradictionChecker`. The
+numeric heuristic can over-flag version-like or sequential data; treat results
+as advisory.
 """
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable, Iterable
 from typing import Any
 
@@ -26,9 +35,10 @@ NEGATIONS = {
 
 _ANTONYM_PAIRS = [
     ("increase", "decrease"), ("increase", "reduce"), ("rise", "fall"),
+    ("grow", "shrink"), ("grow", "fall"), ("grew", "fell"), ("gain", "lose"),
     ("high", "low"), ("good", "bad"), ("like", "dislike"), ("love", "hate"),
     ("enable", "disable"), ("allow", "deny"), ("allow", "forbid"),
-    ("true", "false"), ("yes", "no"), ("success", "failure"),
+    ("true", "false"), ("yes", "no"), ("success", "failure"), ("pass", "fail"),
     ("accept", "reject"), ("start", "stop"), ("open", "close"),
     ("add", "remove"), ("include", "exclude"), ("always", "never"),
     ("fast", "slow"), ("safe", "unsafe"), ("prefer", "avoid"),
@@ -48,12 +58,36 @@ NEGATIVE_WORDS = {
     "failed", "error", "invalid", "disable", "deny",
 }
 
+_NUM_RE = re.compile(r"\d+(?:\.\d+)?")
+
+
+def _stem(word: str) -> str:
+    """A tiny, deterministic suffix stripper so inflected forms collide.
+
+    Not a real lemmatizer — just enough to make ``enabled``≈``enable`` and
+    ``increased``≈``increase`` match in the antonym map.
+    """
+
+    w = word
+    if len(w) > 5 and w.endswith("ing"):
+        w = w[:-3]
+    elif len(w) > 4 and w.endswith("ed"):
+        w = w[:-2]
+    elif len(w) > 4 and w.endswith("es"):
+        w = w[:-2]
+    elif len(w) > 3 and w.endswith("s") and not w.endswith("ss"):
+        w = w[:-1]
+    if len(w) > 4 and w.endswith("e"):
+        w = w[:-1]
+    return w
+
 
 def _antonyms() -> dict[str, set[str]]:
     mapping: dict[str, set[str]] = {}
     for left, right in _ANTONYM_PAIRS:
-        mapping.setdefault(left, set()).add(right)
-        mapping.setdefault(right, set()).add(left)
+        left_stem, right_stem = _stem(left), _stem(right)
+        mapping.setdefault(left_stem, set()).add(right_stem)
+        mapping.setdefault(right_stem, set()).add(left_stem)
     return mapping
 
 
@@ -81,10 +115,34 @@ def _sentiment(tokens: set[str]) -> int:
 
 
 def _antonym_crosses(a: set[str], b: set[str]) -> bool:
-    for word in a:
-        if _ANTONYM_MAP.get(word, set()) & b:
+    a_stems = {_stem(word) for word in a}
+    b_stems = {_stem(word) for word in b}
+    for word in a_stems:
+        if _ANTONYM_MAP.get(word, set()) & b_stems:
             return True
     return False
+
+
+def _numbers(text: str) -> set[float]:
+    return {float(match) for match in _NUM_RE.findall(text)}
+
+
+def _non_numeric_tokens(text: str) -> set[str]:
+    return {token for token in token_set(text) if not token[0].isdigit()}
+
+
+def _numeric_conflict(a_text: str, b_text: str) -> bool:
+    """True when two near-identically worded statements carry different numbers."""
+
+    numbers_a, numbers_b = _numbers(a_text), _numbers(b_text)
+    if not numbers_a or not numbers_b or numbers_a == numbers_b:
+        return False
+    words_a, words_b = _non_numeric_tokens(a_text), _non_numeric_tokens(b_text)
+    if not words_a or not words_b:
+        return False
+    union = len(words_a | words_b)
+    overlap = len(words_a & words_b) / union if union else 0.0
+    return overlap >= 0.5
 
 
 def _opposition(a_text: str, b_text: str, a_tags: set[str], b_tags: set[str]) -> float:
@@ -100,7 +158,6 @@ def _opposition(a_text: str, b_text: str, a_tags: set[str], b_tags: set[str]) ->
     if sentiment_product < 0:
         opposition = max(opposition, 0.6)
 
-    # Antonymous tags on otherwise-related memories are a strong conflict signal.
     if _antonym_crosses(a_tags, b_tags):
         opposition = max(opposition, 0.8)
 
@@ -112,15 +169,17 @@ def contradiction_pair(a: object, b: object) -> float:
 
     a_text, b_text = _content_of(a), _content_of(b)
     overlap = lexical_similarity(a_text, b_text)
-    if overlap < 0.12:
-        return 0.0  # unrelated: opposition would be coincidental
+    numeric = _numeric_conflict(a_text, b_text)
 
-    opposition = _opposition(a_text, b_text, _tags_of(a), _tags_of(b))
-    if opposition <= 0.0:
+    # Need relatedness; the numeric heuristic carries its own (stricter) gate.
+    if overlap < 0.12 and not numeric:
         return 0.0
 
-    # Require both relatedness and opposition; relatedness modulates confidence.
-    return max(0.0, min(1.0, opposition * (0.5 + 0.5 * overlap)))
+    opposition = _opposition(a_text, b_text, _tags_of(a), _tags_of(b))
+    score = opposition * (0.5 + 0.5 * overlap) if opposition > 0.0 else 0.0
+    if numeric:
+        score = max(score, 0.6)
+    return max(0.0, min(1.0, score))
 
 
 def detect_contradiction(new_memory: object, existing_memories: Iterable[object]) -> float:
@@ -168,7 +227,6 @@ class ContradictionChecker:
         if self.llm is None:
             return heuristic
         a_text, b_text = _content_of(a), _content_of(b)
-        # Only spend an LLM call when the texts are plausibly about the same thing.
         if lexical_similarity(a_text, b_text) < self.candidate_gate and heuristic == 0.0:
             return heuristic
         score = semantic_contradiction_pair(a_text, b_text, self.llm)

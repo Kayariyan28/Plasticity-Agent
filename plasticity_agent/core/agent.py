@@ -325,12 +325,20 @@ class PlasticAgent:
         energy = build_energy_report(self.memory.list_memories(), self.memory.load_traces())
         quality = self.memory.evaluate_all()
         avg_utility = mean(q.utility_score for q in quality) if quality else 0.0
+        # Grounded utility weights each memory by how much it has actually been
+        # used (recalled), so storing unused but flattering memories doesn't help.
+        grounded = (
+            mean(q.utility_score * min(q.usage_count, 5) / 5.0 for q in quality)
+            if quality
+            else 0.0
+        )
         snapshot = MetricSnapshot(
             label=label,
             memories=self.memory.count(),
             skills=self.skills.count(),
             plasticity_score=energy.plasticity_score,
             avg_utility=round(avg_utility, 4),
+            grounded_utility=round(grounded, 4),
             contradiction_pressure=energy.contradiction_pressure,
             memory_entropy=energy.memory_entropy,
         )

@@ -43,6 +43,13 @@ score     = 0.78 * relevance + 0.12 * tag_hit + 0.10 * salience_prior
 | `SentenceTransformerBackend` | `sentence-transformers` | True semantic embeddings (lazy import) |
 | `CallableEmbeddingBackend` | none | Wrap any `fn(list[str]) -> list[vector]` |
 
+!!! warning "The default hashing backend is structural, not semantic"
+    `HashingEmbeddingBackend` only matches on **shared tokens** — it will **not** retrieve pure
+    synonyms or paraphrases (e.g. "make responses faster" won't match a memory about "latency").
+    For genuine semantic recall use `SentenceTransformerBackend` (`pip install
+    sentence-transformers`) or an embeddings callable. The hybrid scoring/persistence/index are
+    identical across backends.
+
 ## Vector index
 
 ```python

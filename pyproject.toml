@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "plasticity-agent"
-version = "0.2.0"
+version = "0.2.1"
 description = "Neuroplastic memory, self-healing, and critical reasoning for AI agents — a local-first, framework-agnostic runtime."
 readme = "README.md"
 requires-python = ">=3.11"
