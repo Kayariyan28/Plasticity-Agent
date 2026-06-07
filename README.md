@@ -6,9 +6,11 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/plasticity-agent.svg)](https://pypi.org/project/plasticity-agent/)
 [![Python](https://img.shields.io/pypi/pyversions/plasticity-agent.svg)](https://pypi.org/project/plasticity-agent/)
+[![Downloads](https://static.pepy.tech/badge/plasticity-agent)](https://pepy.tech/project/plasticity-agent)
+[![Downloads/month](https://img.shields.io/pypi/dm/plasticity-agent.svg?label=downloads/month&color=1182c3)](https://pypistats.org/packages/plasticity-agent)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-122%20passing-brightgreen.svg)](#testing)
-[![Typed](https://img.shields.io/badge/mypy-clean-blue.svg)](#)
+[![Tests](https://img.shields.io/badge/tests-129%20passing-brightgreen.svg)](#testing--development)
+[![Typed](https://img.shields.io/badge/mypy-clean-blue.svg)](#testing--development)
 [![Code style: Ruff](https://img.shields.io/badge/code%20style-ruff-261230.svg)](https://github.com/astral-sh/ruff)
 
 *A local-first, framework-agnostic Python runtime that gives agents an evolving memory,
@@ -545,6 +547,24 @@ Issues and PRs welcome. Please run `ruff`, `mypy`, and `pytest` before submittin
 ```bash
 uv run ruff check . && uv run mypy plasticity_agent && uv run pytest
 ```
+
+## Downloads & analytics
+
+Live download stats for `plasticity-agent`:
+
+- **pepy.tech** — total + daily/monthly trend, version & Python breakdown:
+  <https://pepy.tech/project/plasticity-agent>
+- **PyPIStats** — official PyPI download stats with charts:
+  <https://pypistats.org/packages/plasticity-agent>
+- **Quick CLI check:**
+  ```bash
+  pipx run pypistats recent plasticity-agent      # last day/week/month
+  pipx run pypistats python_minor plasticity-agent
+  ```
+
+The badges at the top of this README (Downloads = pepy total, Downloads/month = PyPIStats) update
+automatically. Note: PyPI download data is sourced from a BigQuery dataset that lags **~1–2 days**,
+so a freshly published release shows little or no data at first.
 
 ## Citation
 
