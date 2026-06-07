@@ -6,7 +6,6 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/plasticity-agent.svg)](https://pypi.org/project/plasticity-agent/)
 [![Python](https://img.shields.io/pypi/pyversions/plasticity-agent.svg)](https://pypi.org/project/plasticity-agent/)
-[![Downloads](https://static.pepy.tech/badge/plasticity-agent)](https://pepy.tech/project/plasticity-agent)
 [![Downloads/month](https://img.shields.io/pypi/dm/plasticity-agent.svg?label=downloads/month&color=1182c3)](https://pypistats.org/packages/plasticity-agent)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-129%20passing-brightgreen.svg)](#testing--development)
@@ -562,9 +561,13 @@ Live download stats for `plasticity-agent`:
   pipx run pypistats python_minor plasticity-agent
   ```
 
-The badges at the top of this README (Downloads = pepy total, Downloads/month = PyPIStats) update
-automatically. Note: PyPI download data is sourced from a BigQuery dataset that lags **~1–2 days**,
-so a freshly published release shows little or no data at first.
+The **Downloads/month** badge at the top updates automatically from PyPIStats.
+
+> **Heads-up on the data lag.** PyPI download counts come from a BigQuery dataset that ingests
+> **~1–2 days** after downloads happen. Right after a fresh release, pepy.tech and PyPIStats show
+> *no data* — pepy's project page/badge will even **404** until the first downloads are recorded.
+> Both self-populate automatically once data lands; no action needed. Once pepy is live you can add
+> a total-downloads badge: `https://static.pepy.tech/badge/plasticity-agent`.
 
 ## Citation
 
